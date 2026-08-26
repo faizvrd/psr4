@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Procurement Dashboard | ProcureTech Suite</title>
+    <meta name="description" content="Enterprise procurement and purchase status analytics dashboard with real-time spend tracking, order status, vendor performance, and purchase order management.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN with custom config -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            750: '#293548',
+                            850: '#172033',
+                            900: '#0f172a',
+                            950: '#090d16',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- ApexCharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <!-- FontAwesome 6 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .apexcharts-tooltip.apexcharts-theme-dark {
+            background: #1e293b !important;
+            border: 1px solid #334155 !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+            border-radius: 8px !important;
+            color: #f8fafc !important;
+        }
+        .apexcharts-tooltip-title {
+            background: #0f172a !important;
+            border-bottom: 1px solid #334155 !important;
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+            font-weight: 600 !important;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased selection:bg-blue-600 selection:text-white flex h-screen overflow-hidden">
+
+    <!-- MOBILE SIDEBAR OVERLAY -->
+    <div id="mobile-sidebar-backdrop" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-950/80 z-40 backdrop-blur-xs hidden lg:hidden transition-opacity"></div>
+
+    <!-- SIDEBAR -->
+    <aside id="main-sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-950/95 lg:bg-slate-950 border-r border-slate-800/80 flex flex-col justify-between transition-transform duration-300 -translate-x-full lg:translate-x-0">
+        <div>
+            <!-- Brand Logo -->
+            <div class="h-16 flex items-center justify-between px-6 border-b border-slate-800/80">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white font-bold text-lg">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+                    <div>
+                        <span class="text-base font-bold tracking-tight text-white block leading-tight">ProcureTech</span>
+                        <span class="text-[10px] uppercase font-semibold tracking-wider text-blue-400">Enterprise v2.4</span>
+                    </div>
+                </div>
+                <button onclick="toggleMobileSidebar()" class="lg:hidden text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Navigation Links -->
+            <div class="px-4 py-6">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 mb-2">Core Modules</p>
+                <nav class="space-y-1.5">
+                    <button onclick="switchTab('overview')" id="nav-overview" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors bg-blue-600 text-white shadow-md shadow-blue-600/20">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                            <span>Overview</span>
+                        </div>
+                        <span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-white/20 text-white">Live</span>
+                    </button>
+
+                    <button onclick="switchTab('orders')" id="nav-orders" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i>
+                            <span>Purchase Orders</span>
+                        </div>
+                        <span id="sidebar-delayed-badge" class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">3 Delayed</span>
+                    </button>
+
+                    <button onclick="switchTab('vendors')" id="nav-vendors" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-building w-5 text-center"></i>
+                            <span>Vendor Directory</span>
+                        </div>
+                        <span class="text-[11px] font-medium text-slate-500" id="sidebar-vendor-count">6 Active</span>
+                    </button>
+                </nav>
+
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 mt-6 mb-2">Shortcuts & Tools</p>
+                <div class="space-y-1.5">
+                    <button onclick="openNewOrderModal()" class="w-full flex items-center space-x-3 px-3.5 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors">
+                        <i class="fa-solid fa-plus-circle text-blue-400 w-5 text-center"></i>
+                        <span>Create New PO</span>
+                    </button>
+                    <button onclick="openExportModal()" class="w-full flex items-center space-x-3 px-3.5 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors">
+                        <i class="fa-solid fa-file-export text-emerald-400 w-5 text-center"></i>
+                        <span>Export Analytics</span>
+                    </button>
+                    <button onclick="filterByStatus('Delayed')" class="w-full flex items-center space-x-3 px-3.5 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-400 w-5 text-center"></i>
+                        <span>At-Risk Shipments</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Footer & User Profile -->
+        <div class="p-4 border-t border-slate-800/80 bg-slate-950">
+            <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-xs text-slate-300 font-medium">ERP Connector</span>
+                </div>
+                <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/50">SYNCHED</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center font-bold text-xs text-white ring-2 ring-slate-700">
+                    JD
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-white truncate">John Doe</p>
+                    <p class="text-xs text-slate-400 truncate">Lead Procurement Dir.</p>
+                </div>
+                <button onclick="showToast('Logged out of ERP session (demo mode).')" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800" title="Profile Settings">
+                    <i class="fa-solid fa-gear text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN WRAPPER -->
+    <div class="flex-1 lg:pl-64 flex flex-col h-screen overflow-hidden">
+
+        <!-- HEADER -->
+        <header class="h-16 bg-slate-900/80 backdrop-blur-md border-b border-slate-800/80 px-4 md:px-6 flex items-center justify-between z-30 shrink-0">
+            <div class="flex items-center space-x-3 md:space-x-4">
+                <button onclick="toggleMobileSidebar()" class="lg:hidden text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+                <div>
+                    <h1 id="page-header-title" class="text-lg md:text-xl font-bold text-white tracking-tight leading-tight">Executive Procurement Overview</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Real-time spend analytics, order fulfillment, and supplier SLA compliance</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 md:space-x-3">
+                <!-- Search Bar -->
+                <div class="relative hidden md:block w-56 lg:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                    <input type="text" id="global-search-input" oninput="handleGlobalSearch(this.value)" placeholder="Search PO, vendor, carrier..." class="w-full bg-slate-800/90 text-slate-200 pl-8 pr-3 py-1.5 rounded-lg border border-slate-700/80 text-xs focus:outline-hidden focus:border-blue-500 transition-colors placeholder:text-slate-500">
+                </div>
+
+                <!-- Live refresh button -->
+                <button onclick="refreshData()" class="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-medium transition-colors" title="Sync data">
+                    <i id="refresh-icon" class="fa-solid fa-arrows-rotate text-blue-400"></i>
+                    <span id="last-updated-text" class="hidden sm:inline font-mono">14:49 UTC</span>
+                </button>
+
+                <!-- Export Button -->
+                <button onclick="openExportModal()" class="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-medium transition-colors">
+                    <i class="fa-solid fa-download text-emerald-400"></i>
+                    <span class="hidden sm:inline">Export</span>
+                </button>
+
+                <!-- Create PO Button -->
+                <button onclick="openNewOrderModal()" class="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-md shadow-blue-600/30 transition-colors">
+                    <i class="fa-solid fa-plus"></i>
+                    <span class="hidden xs:inline">New PO</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN SCROLLABLE CONTENT -->
+        <main id="main-content-scroll" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+
+            <!-- TAB 1: OVERVIEW -->
+            <div id="tab-content-overview" class="space-y-6 animate-fade-in">
+                
+                <!-- TOP 4 KPI CARDS -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+                    
+                    <!-- KPI 1: Total Spend -->
+                    <div class="bg-slate-800/70 border border-slate-700/80 rounded-xl p-5 hover:border-slate-600 transition-all shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Spend (YTD)</span>
+                            <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-sm border border-blue-500/20">
+                                <i class="fa-solid fa-dollar-sign"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <h3 id="kpi-total-spend" class="text-2xl font-bold text-white tracking-tight">$2,485,200</h3>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="text-xs font-semibold text-emerald-400 flex items-center">
+                                    <i class="fa-solid fa-arrow-trend-up mr-1"></i> +12.4%
+                                </span>
+                                <span class="text-xs text-slate-400">vs last quarter</span>
+                            </div>
+                        </div>
+                        <!-- Target Progress -->
+                        <div class="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
+                            <span>Budget utilization:</span>
+                            <span class="font-semibold text-slate-300 font-mono">78.2% of $3.2M</span>
+                        </div>
+                    </div>
+
+                    <!-- KPI 2: Active Orders -->
+                    <div class="bg-slate-800/70 border border-slate-700/80 rounded-xl p-5 hover:border-slate-600 transition-all shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Active Orders</span>
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-sm border border-indigo-500/20">
+                                <i class="fa-solid fa-cart-flatbed"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <h3 id="kpi-active-orders" class="text-2xl font-bold text-white tracking-tight">142</h3>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <button onclick="filterByStatus('Delayed')" class="text-xs font-bold text-rose-400 hover:text-rose-300 flex items-center bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20 transition-colors">
+                                    <i class="fa-solid fa-circle-exclamation mr-1"></i> <span id="kpi-delayed-count">18</span> Delayed
+                                </button>
+                                <span class="text-xs text-slate-400">in pipeline</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
+                            <span>Avg transit duration:</span>
+                            <span class="font-semibold text-slate-300 font-mono">4.1 days</span>
+                        </div>
+                    </div>
+
+                    <!-- KPI 3: On-Time Delivery -->
+                    <div class="bg-slate-800/70 border border-slate-700/80 rounded-xl p-5 hover:border-slate-600 transition-all shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">On-Time Delivery</span>
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm border border-emerald-500/20">
+                                <i class="fa-solid fa-truck-fast"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <h3 class="text-2xl font-bold text-white tracking-tight">94.2%</h3>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="text-xs font-semibold text-emerald-400 flex items-center">
+                                    <i class="fa-solid fa-arrow-trend-up mr-1"></i> +1.8%
+                                </span>
+                                <span class="text-xs text-slate-400">vs benchmark</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-700/60">
+                            <div class="w-full bg-slate-700/80 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 94.2%"></div>
+                            </div>
+                            <div class="flex justify-between text-[11px] text-slate-400 mt-1">
+                                <span>Target: 95.0%</span>
+                                <span class="text-emerald-400 font-mono font-medium">94.2%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI 4: Avg Lead Time -->
+                    <div class="bg-slate-800/70 border border-slate-700/80 rounded-xl p-5 hover:border-slate-600 transition-all shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Avg. Lead Time</span>
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-sm border border-amber-500/20">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <h3 class="text-2xl font-bold text-white tracking-tight">6.4 <span class="text-base font-normal text-slate-400">Days</span></h3>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="text-xs font-semibold text-emerald-400 flex items-center">
+                                    <i class="fa-solid fa-arrow-trend-down mr-1"></i> -1.2 Days
+                                </span>
+                                <span class="text-xs text-slate-400">improvement</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
+                            <span>Procurement cycle:</span>
+                            <span class="font-semibold text-emerald-400 font-mono">Fast Track</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CHARTS SECTION: 2 cols Spend, 1 col Status Breakdown -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Left Chart: Monthly Spend & Volume -->
+                    <div class="lg:col-span-2 bg-slate-800/70 border border-slate-700/80 rounded-xl p-5 shadow-sm">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                            <div>
+                                <h3 class="text-base font-bold text-white">Monthly Spend & Order Volume</h3>
+                                <p class="text-xs text-slate-400">Financial capital deployed vs. purchase orders executed</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="flex items-center text-xs text-slate-400 mr-2">
+                                    <span class="w-2.5 h-2.5 rounded-xs bg-blue-500 mr-1.5"></span> Spend ($k)
+                                </span>
+                                <span class="flex items-center text-xs text-slate-400 mr-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 mr-1.5"></span> Orders
+                                </span>
+                            </div>
+                        </div>
+                        <div id="spend-chart-container" class="min-h-[300px]"></div>
+                    </div>
+
+                    <!-- Right Chart: Status Breakdown Donut -->
+                    <div class="bg-slate-800/70 border border-slate-700/80 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-base font-bold text-white">Status Breakdown</h3>
+                                <button onclick="resetStatusFilter()" class="text-[11px] text-blue-400 hover:text-blue-300 font-medium">Reset</button>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-4">Distribution of active pipeline orders</p>
+                            <div id="status-chart-container" class="min-h-[250px] flex items-center justify-center"></div>
+                        </div>
+                        
+                        <!-- Quick status summary list -->
+                        <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-700/60 text-xs">
+                            <button onclick="filterByStatus('Received')" class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-750 transition-colors border border-slate-800">
+                                <span class="flex items-center text-slate-300"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>Received</span>
+                                <span class="font-mono font-bold text-white">44%</span>
+                            </button>
+                            <button onclick="filterByStatus('In Transit')" class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-750 transition-colors border border-slate-800">
+                                <span class="flex items-center text-slate-300"><span class="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>In Transit</span>
+                                <span class="font-mono font-bold text-white">22%</span>
+                            </button>
+                            <button onclick="filterByStatus('Pending')" class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-750 transition-colors border border-slate-800">
+                                <span class="flex items-center text-slate-300"><span class="w-2 h-2 rounded-full bg-amber-500 mr-2"></span>Pending</span>
+                                <span class="font-mono font-bold text-white">13%</span>
+                            </button>
+                            <button onclick="filterByStatus('Delayed')" class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-750 transition-colors border border-slate-800">
+                                <span class="flex items-center text-slate-300"><span class="w-2 h-2 rounded-full bg-rose-500 mr-2"></span>Delayed</span>
+                                <span class="font-mono font-bold text-rose-400">8%</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RECENT ORDERS FEED -->
+                <div class="bg-slate-800/70 border border-slate-700/80 rounded-xl p-5 shadow-sm">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div>
+                            <h3 class="text-base font-bold text-white">Recent Purchase Orders</h3>
+                            <p class="text-xs text-slate-400">Real-time status tracking and fulfillment logs</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <!-- Filter pills -->
+                            <div class="flex items-center bg-slate-900/80 p-1 rounded-lg border border-slate-700/70 text-xs overflow-x-auto">
+                                <button onclick="filterByStatus('ALL')" id="filter-btn-ALL" class="px-2.5 py-1 rounded-md font-semibold bg-blue-600 text-white transition-colors">All</button>
+                                <button onclick="filterByStatus('In Transit')" id="filter-btn-In-Transit" class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition-colors">In Transit</button>
+                                <button onclick="filterByStatus('Delayed')" id="filter-btn-Delayed" class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition-colors">Delayed</button>
+                                <button onclick="filterByStatus('Pending')" id="filter-btn-Pending" class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition-colors">Pending</button>
+                                <button onclick="filterByStatus('Received')" id="filter-btn-Received" class="px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition-colors">Received</button>
+                            </div>
+                            <button onclick="switchTab('orders')" class="text-xs text-blue-400 hover:text-blue-300 font-semibold px-2 py-1 flex items-center">
+                                View All <i class="fa-solid fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Orders Table Container -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-700 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-900/40">
+                                    <th class="py-3 px-4">PO Number</th>
+                                    <th class="py-3 px-4">Supplier / Vendor</th>
+                                    <th class="py-3 px-4">Primary Items</th>
+                                    <th class="py-3 px-4">Total Amount</th>
+                                    <th class="py-3 px-4">Expected ETA</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4">Carrier / Tracking</th>
+                                    <th class="py-3 px-4 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-orders-tbody" class="divide-y divide-slate-750 text-xs">
+                                <!-- Populated dynamically by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB 2: PURCHASE ORDERS FULL VIEW -->
+            <div id="tab-content-orders" class="space-y-6 hidden animate-fade-in">
+                <div class="bg-slate-800/70 border border-slate-700/80 rounded-xl p-5 shadow-sm">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h2 class="text-lg font-bold text-white">All Purchase Orders Registry</h2>
+                            <p class="text-xs text-slate-400">Complete audit log of issued, in-transit, and settled purchase orders</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="relative w-48 sm:w-64">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input type="text" id="po-registry-search" oninput="handleGlobalSearch(this.value)" placeholder="Search orders..." class="w-full bg-slate-900/90 text-slate-200 pl-8 pr-3 py-1.5 rounded-lg border border-slate-700 text-xs focus:outline-hidden focus:border-blue-500">
+                            </div>
+                            <button onclick="openNewOrderModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm flex items-center space-x-1.5">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Create Order</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-700 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-900/40">
+                                    <th class="py-3 px-4">PO Number</th>
+                                    <th class="py-3 px-4">Vendor</th>
+                                    <th class="py-3 px-4">Department</th>
+                                    <th class="py-3 px-4">Amount</th>
+                                    <th class="py-3 px-4">Issue Date</th>
+                                    <th class="py-3 px-4">ETA</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4">Logistics</th>
+                                    <th class="py-3 px-4 text-right">Manage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="all-orders-tbody" class="divide-y divide-slate-750 text-xs">
+                                <!-- Populated dynamically by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: VENDOR PERFORMANCE VIEW -->
+            <div id="tab-content-vendors" class="space-y-6 hidden animate-fade-in">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Vendor Performance & Compliance Scorecard</h2>
+                        <p class="text-xs text-slate-400">Evaluate supplier SLA delivery compliance, quality scores, and capital spend</p>
+                    </div>
+                    <button onclick="openNewOrderModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm self-start flex items-center space-x-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Issue PO to Vendor</span>
+                    </button>
+                </div>
+
+                <div id="vendors-card-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <!-- Populated dynamically by JavaScript -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL 1: ORDER DETAILS / SHIPMENT TRACKING -->
+    <div id="order-details-modal" class="fixed inset-0 bg-slate-950/80 z-50 backdrop-blur-xs hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 relative">
+            <button onclick="closeOrderModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div id="order-details-modal-content">
+                <!-- Injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: CREATE NEW PURCHASE ORDER -->
+    <div id="new-order-modal" class="fixed inset-0 bg-slate-950/80 z-50 backdrop-blur-xs hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 relative">
+            <button onclick="closeNewOrderModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="mb-5">
+                <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-file-circle-plus text-blue-400"></i>
+                    <span>Create Purchase Order</span>
+                </h3>
+                <p class="text-xs text-slate-400">Issue an approved procurement requisition to a certified vendor</p>
+            </div>
+            
+            <form id="new-po-form" onsubmit="handleCreateOrder(event)" class="space-y-4 text-xs">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">Select Supplier / Vendor *</label>
+                        <select id="modal-vendor-select" required class="w-full bg-slate-800 text-slate-100 p-2 rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-hidden">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">Department *</label>
+                        <select id="modal-dept-select" required class="w-full bg-slate-800 text-slate-100 p-2 rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-hidden">
+                            <option value="IT Operations">IT Operations</option>
+                            <option value="Facilities & Safety">Facilities & Safety</option>
+                            <option value="Logistics & Fleet">Logistics & Fleet</option>
+                            <option value="Engineering & Lab">Engineering & Lab</option>
+                            <option value="Corporate Office">Corporate Office</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">Expected Delivery *</label>
+                        <input type="date" id="modal-eta-input" required class="w-full bg-slate-800 text-slate-100 p-2 rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-hidden">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">Priority</label>
+                        <select id="modal-priority-select" class="w-full bg-slate-800 text-slate-100 p-2 rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-hidden">
+                            <option value="Standard">Standard</option>
+                            <option value="Urgent">Urgent</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">Carrier</label>
+                        <select id="modal-carrier-select" class="w-full bg-slate-800 text-slate-100 p-2 rounded-lg border border-slate-700 focus:border-blue-500 focus:outline-hidden">
+                            <option value="FedEx Express">FedEx Express</option>
+                            <option value="DHL Worldwide">DHL Worldwide</option>
+                            <option value="UPS Supply Chain">UPS Supply Chain</option>
+                            <option value="Maersk Freight">Maersk Freight</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Line Items Section -->
+                <div class="pt-2 border-t border-slate-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-slate-300 font-semibold">Bill of Materials / Items</label>
+                        <button type="button" onclick="addModalItemRow()" class="text-blue-400 hover:text-blue-300 text-[11px] font-semibold">
+                            + Add Line Item
+                        </button>
+                    </div>
+                    <div id="modal-items-container" class="space-y-2 max-h-36 overflow-y-auto pr-1">
+                        <!-- Item row -->
+                    </div>
+                </div>
+
+                <!-- Totals preview -->
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 flex justify-between items-center text-xs">
+                    <span class="text-slate-400">Total Purchase Commitment:</span>
+                    <span id="modal-total-display" class="text-base font-bold text-emerald-400 font-mono">$0.00</span>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-3">
+                    <button type="button" onclick="closeNewOrderModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md shadow-blue-600/30 transition-colors">
+                        Issue Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: EXPORT REPORT -->
+    <div id="export-report-modal" class="fixed inset-0 bg-slate-950/80 z-50 backdrop-blur-xs hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl p-6 relative">
+            <button onclick="closeExportModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="mb-4">
+                <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                    <i class="fa-solid fa-file-export text-emerald-400"></i>
+                    <span>Export Procurement Data</span>
+                </h3>
+                <p class="text-xs text-slate-400">Download formatted reports for ERP auditing & finance spreadsheets</p>
+            </div>
+
+            <div class="space-y-3 my-5">
+                <button onclick="downloadCSVReport()" class="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-left transition-colors group">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-base border border-emerald-500/20 group-hover:bg-emerald-500/20">
+                            <i class="fa-solid fa-file-csv"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-white">Purchase Orders CSV Spreadsheet</p>
+                            <p class="text-[11px] text-slate-400">Full transactional line items & ETAs</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-arrow-down-to-line text-slate-400 group-hover:text-white"></i>
+                </button>
+
+                <button onclick="downloadJSONReport()" class="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-left transition-colors group">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-base border border-blue-500/20 group-hover:bg-blue-500/20">
+                            <i class="fa-solid fa-code"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-white">Structured JSON Analytics Payload</p>
+                            <p class="text-[11px] text-slate-400">ERP & BI data pipeline format</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-arrow-down-to-line text-slate-400 group-hover:text-white"></i>
+                </button>
+
+                <button onclick="window.print()" class="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-left transition-colors group">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center text-base border border-purple-500/20 group-hover:bg-purple-500/20">
+                            <i class="fa-solid fa-print"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-white">Printable Summary View</p>
+                            <p class="text-[11px] text-slate-400">Formatted executive summary print</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-slate-400 group-hover:text-white"></i>
+                </button>
+            </div>
+
+            <div class="flex justify-end">
+                <button onclick="closeExportModal()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <!-- JAVASCRIPT APPLICATION CORE -->
+    <script>
+        // --- 1. DATA STATE & MOCK DATA ---
+        let currentTab = 'overview';
+        let currentStatusFilter = 'ALL';
+        let searchQuery = '';
+
+        const VENDORS_DATA = [
+            {
+                id: 'V-001',
+                name: 'Apex Industrial Logistics',
+                category: 'Heavy Machinery & Fleet',
+                contactEmail: 'orders@apexlogistics.io',
+                leadTimeDays: 4.2,
+                onTimeDeliveryRate: 98.4,
+                qualityScore: 4.9,
+                totalSpend: 780400,
+                activeOrdersCount: 28,
+                status: 'Preferred Tier 1',
+                badgeColor: 'emerald'
+            },
+            {
+                id: 'V-002',
+                name: 'Global Micro Technologies',
+                category: 'Semiconductors & Electronics',
+                contactEmail: 'supply@globalmicro.tech',
+                leadTimeDays: 7.8,
+                onTimeDeliveryRate: 91.5,
+                qualityScore: 4.6,
+                totalSpend: 620000,
+                activeOrdersCount: 42,
+                status: 'Certified',
+                badgeColor: 'blue'
+            },
+            {
+                id: 'V-003',
+                name: 'Vanguard Raw Materials Ltd.',
+                category: 'Steel, Alloys & Polymers',
+                contactEmail: 'dispatch@vanguardraw.com',
+                leadTimeDays: 9.1,
+                onTimeDeliveryRate: 84.2,
+                qualityScore: 4.1,
+                totalSpend: 490500,
+                activeOrdersCount: 19,
+                status: 'Under Review',
+                badgeColor: 'amber'
+            },
+            {
+                id: 'V-004',
+                name: 'Nexus SafeGuard Systems',
+                category: 'Facility & Safety Equipment',
+                contactEmail: 'b2b@nexussafeguard.com',
+                leadTimeDays: 3.5,
+                onTimeDeliveryRate: 99.1,
+                qualityScore: 4.9,
+                totalSpend: 240800,
+                activeOrdersCount: 15,
+                status: 'Preferred Tier 1',
+                badgeColor: 'emerald'
+            },
+            {
+                id: 'V-005',
+                name: 'BioSynthetix Chemical Corp',
+                category: 'Specialty Reagents',
+                contactEmail: 'orders@biosynthetix.com',
+                leadTimeDays: 5.9,
+                onTimeDeliveryRate: 92.0,
+                qualityScore: 4.5,
+                totalSpend: 195000,
+                activeOrdersCount: 22,
+                status: 'Certified',
+                badgeColor: 'blue'
+            },
+            {
+                id: 'V-006',
+                name: 'AeroDynamics Composite Tech',
+                category: 'Aerospace Fasteners & Carbon',
+                contactEmail: 'support@aerodynamics-tech.de',
+                leadTimeDays: 8.4,
+                onTimeDeliveryRate: 89.6,
+                qualityScore: 4.4,
+                totalSpend: 158500,
+                activeOrdersCount: 16,
+                status: 'Active',
+                badgeColor: 'slate'
+            }
+        ];
+
+        let PURCHASE_ORDERS = [
+            {
+                id: 'PO-9842',
+                poNumber: 'PO-2026-9842',
+                vendorId: 'V-001',
+                vendorName: 'Apex Industrial Logistics',
+                department: 'Fleet Maintenance',
+                totalAmount: 142500,
+                issueDate: '2026-08-18',
+                expectedDelivery: '2026-08-25',
+                status: 'Delayed',
+                carrier: 'FedEx Express Freight',
+                trackingNumber: 'FDX-8942-8921-X',
+                destination: 'Warehouse Hub B, Dock 4',
+                items: [
+                    { name: 'Heavy Duty Hydraulic Actuators', qty: 12, unitPrice: 8500, total: 102000 },
+                    { name: 'Industrial Servo Pumps v4', qty: 15, unitPrice: 2700, total: 40500 }
+                ],
+                milestones: [
+                    { step: 'Order Placed', time: 'Aug 18, 09:30 UTC', done: true },
+                    { step: 'Supplier Dispatched', time: 'Aug 20, 14:15 UTC', done: true },
+                    { step: 'Customs Clearance Delay', time: 'Aug 24, 08:00 UTC', done: true, delayed: true },
+                    { step: 'Expected Arrival', time: 'Aug 28 (Est.)', done: false }
+                ]
+            },
+            {
+                id: 'PO-9841',
+                poNumber: 'PO-2026-9841',
+                vendorId: 'V-002',
+                vendorName: 'Global Micro Technologies',
+                department: 'IT Infrastructure',
+                totalAmount: 89400,
+                issueDate: '2026-08-21',
+                expectedDelivery: '2026-08-27',
+                status: 'In Transit',
+                carrier: 'DHL Express Worldwide',
+                trackingNumber: 'DHL-9841-0029-Y',
+                destination: 'Primary Data Center, Server Hall 3',
+                items: [
+                    { name: 'Enterprise FPGA Accelerator Modules', qty: 24, unitPrice: 3200, total: 76800 },
+                    { name: 'Optical Transceiver Kits 800G', qty: 60, unitPrice: 210, total: 12600 }
+                ],
+                milestones: [
+                    { step: 'Order Placed', time: 'Aug 21, 11:20 UTC', done: true },
+                    { step: 'Dispatched from Hub', time: 'Aug 23, 16:45 UTC', done: true },
+                    { step: 'In Flight Transit', time: 'Aug 25, 03:30 UTC', done: true },
+                    { step: 'Final Delivery', time: 'Aug 27 (On Schedule)', done: false }
+                ]
+            },
+            {
+                id: 'PO-9840',
+                poNumber: 'PO-2026-9840',
+                vendorId: 'V-004',
+                vendorName: 'Nexus SafeGuard Systems',
+                department: 'Plant Safety & Security',
+                totalAmount: 32800,
+                issueDate: '2026-08-22',
+                expectedDelivery: '2026-08-29',
+                status: 'Pending',
+                carrier: 'UPS Supply Chain Logistics',
+                trackingNumber: 'UPS-7740-9281-Z',
+                destination: 'Facility North Gate, Receiving',
+                items: [
+                    { name: 'Automated Chemical Sensor Grid', qty: 10, unitPrice: 2400, total: 24000 },
+                    { name: 'Emergency Respirator Packs Tier 3', qty: 40, unitPrice: 220, total: 8800 }
+                ],
+                milestones: [
+                    { step: 'Order Placed', time: 'Aug 22, 16:00 UTC', done: true },
+                    { step: 'Awaiting Vendor Pick', time: 'In Progress', done: false }
+                ]
+            },
+            {
+                id: 'PO-9839',
+                poNumber: 'PO-2026-9839',
+                vendorId: 'V-003',
+                vendorName: 'Vanguard Raw Materials Ltd.',
+                department: 'Manufacturing Plant 2',
+                totalAmount: 215000,
+                issueDate: '2026-08-14',
+                expectedDelivery: '2026-08-24',
+                status: 'Received',
+                carrier: 'Maersk Inland Rail',
+                trackingNumber: 'MSK-4491-0182-M',
+                destination: 'Raw Silo Terminal 1',
+                items: [
+                    { name: 'Titanium Grade 5 Ingot Pallets', qty: 10, unitPrice: 16500, total: 165000 },
+                    { name: 'Polyamide Resin Bins 500kg', qty: 25, unitPrice: 2000, total: 50000 }
+                ],
+                milestones: [
+                    { step: 'Order Placed', time: 'Aug 14, 08:00 UTC', done: true },
+                    { step: 'Dispatched', time: 'Aug 17, 10:00 UTC', done: true },
+                    { step: 'Delivered & Inspected', time: 'Aug 24, 15:30 UTC', done: true }
+                ]
+            },
+            {
+                id: 'PO-9838',
+                poNumber: 'PO-2026-9838',
+                vendorId: 'V-005',
+                vendorName: 'BioSynthetix Chemical Corp',
+                department: 'Research & Testing Lab',
+                totalAmount: 64200,
+                issueDate: '2026-08-19',
+                expectedDelivery: '2026-08-26',
+                status: 'In Transit',
+                carrier: 'DHL Medical Priority',
+                trackingNumber: 'DHL-3381-8911-B',
+                destination: 'Cleanroom Lab Alpha',
+                items: [
+                    { name: 'High Purity Catalytic Solvents', qty: 80, unitPrice: 650, total: 52000 },
+                    { name: 'Sterile Microfluidic Cartridges', qty: 200, unitPrice: 61, total: 12200 }
+                ],
+                milestones: [
+                    { step: 'Order Placed', time: 'Aug 19, 13:00 UTC', done: true },
+                    { step: 'Cold Chain In Transit', time: 'Aug 23, 09:15 UTC', done: true }
+                ]
+            },
+            {
+                id: 'PO-9837',
+                poNumber: 'PO-2026-9837',
+                vendorId: 'V-006',
+                vendorName: 'AeroDynamics Composite Tech',
+                department: 'Structures Lab',
+                totalAmount: 112000,
+                issueDate: '2026-08-16',
+                expectedDelivery: '2026-08-23',
+                status: 'Delayed',
+                carrier: 'Schenker Cargo Air',
+                trackingNumber: 'DB-8921-9941-A',
+                destination: 'Hangar Bay 4',
+                items: [
+                    { name: 'Carbon Fiber Prepreg Rolls 300m', qty: 20, unitPrice: 4800, total: 96000 },
+                    { name: 'Structural Aerospace Fastener Kits', qty: 32, unitPrice: 500, total: 16000 }
+                ],
+                milestones: [
+                    { step: 'Order Placed', time: 'Aug 16, 10:00 UTC', done: true },
+                    { step: 'Port Hold', time: 'Aug 22, 11:30 UTC', done: true, delayed: true }
+                ]
+            }
+        ];
+
+        let spendChartInstance = null;
+        let statusChartInstance = null;
+
+        // --- 2. RENDER FUNCTIONS ---
+        function renderAll() {
+            renderRecentOrdersTable();
+            renderAllOrdersTable();
+            renderVendorsGrid();
+            populateVendorSelectDropdown();
+            updateKpiCards();
+        }
+
+        function updateKpiCards() {
+            const totalSpend = PURCHASE_ORDERS.reduce((acc, o) => acc + o.totalAmount, 0) + 1832000;
+            document.getElementById('kpi-total-spend').textContent = '$' + totalSpend.toLocaleString();
+            
+            const delayedCount = PURCHASE_ORDERS.filter(o => o.status === 'Delayed').length;
+            document.getElementById('kpi-delayed-count').textContent = delayedCount;
+            document.getElementById('sidebar-delayed-badge').textContent = delayedCount + ' Delayed';
+            document.getElementById('sidebar-vendor-count').textContent = VENDORS_DATA.length + ' Active';
+        }
+
+        function renderRecentOrdersTable() {
+            const tbody = document.getElementById('recent-orders-tbody');
+            if (!tbody) return;
+
+            let filtered = PURCHASE_ORDERS.filter(order => {
+                const matchesFilter = (currentStatusFilter === 'ALL' || order.status === currentStatusFilter);
+                const matchesSearch = searchQuery === '' ||
+                    order.poNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    order.vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    order.carrier.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    order.trackingNumber.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesFilter && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="py-8 text-center text-slate-500">
+                            <i class="fa-solid fa-inbox text-2xl mb-2 block"></i>
+                            No purchase orders found matching this filter.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(order => {
+                const statusBadge = getStatusBadgeHTML(order.status);
+                const primaryItem = order.items && order.items.length > 0 ? order.items[0].name : 'Procurement Items';
+                const itemsCountBadge = order.items && order.items.length > 1 ? `<span class="ml-1 text-[10px] text-slate-500 font-mono">(+${order.items.length - 1} more)</span>` : '';
+
+                return `
+                    <tr class="hover:bg-slate-800/60 transition-colors group cursor-pointer" onclick="openOrderModal('${order.id}')">
+                        <td class="py-3 px-4 font-mono font-semibold text-blue-400">${order.poNumber}</td>
+                        <td class="py-3 px-4">
+                            <div class="font-medium text-white">${order.vendorName}</div>
+                            <div class="text-[11px] text-slate-400">${order.department}</div>
+                        </td>
+                        <td class="py-3 px-4 text-slate-300 max-w-[180px] truncate" title="${primaryItem}">
+                            ${primaryItem} ${itemsCountBadge}
+                        </td>
+                        <td class="py-3 px-4 font-mono font-bold text-slate-100">$${order.totalAmount.toLocaleString()}</td>
+                        <td class="py-3 px-4 text-slate-300 font-mono">${order.expectedDelivery}</td>
+                        <td class="py-3 px-4">${statusBadge}</td>
+                        <td class="py-3 px-4">
+                            <div class="text-[11px] text-slate-300 font-medium">${order.carrier}</div>
+                            <div class="font-mono text-[10px] text-blue-400/80 group-hover:text-blue-300">${order.trackingNumber}</div>
+                        </td>
+                        <td class="py-3 px-4 text-right" onclick="event.stopPropagation()">
+                            <button onclick="openOrderModal('${order.id}')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors text-[11px] font-medium">
+                                Details
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderAllOrdersTable() {
+            const tbody = document.getElementById('all-orders-tbody');
+            if (!tbody) return;
+
+            let filtered = PURCHASE_ORDERS.filter(order => {
+                return searchQuery === '' ||
+                    order.poNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    order.vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    order.department.toLowerCase().includes(searchQuery.toLowerCase());
+            });
+
+            tbody.innerHTML = filtered.map(order => {
+                const statusBadge = getStatusBadgeHTML(order.status);
+                return `
+                    <tr class="hover:bg-slate-800/60 transition-colors">
+                        <td class="py-3 px-4 font-mono font-bold text-blue-400">${order.poNumber}</td>
+                        <td class="py-3 px-4 font-medium text-white">${order.vendorName}</td>
+                        <td class="py-3 px-4 text-slate-300">${order.department}</td>
+                        <td class="py-3 px-4 font-mono font-bold text-emerald-400">$${order.totalAmount.toLocaleString()}</td>
+                        <td class="py-3 px-4 font-mono text-slate-400">${order.issueDate}</td>
+                        <td class="py-3 px-4 font-mono text-slate-200">${order.expectedDelivery}</td>
+                        <td class="py-3 px-4">${statusBadge}</td>
+                        <td class="py-3 px-4 text-[11px] text-slate-400">${order.carrier}</td>
+                        <td class="py-3 px-4 text-right">
+                            <div class="flex items-center justify-end space-x-1.5">
+                                <button onclick="openOrderModal('${order.id}')" class="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-blue-400" title="View Details">
+                                    <i class="fa-solid fa-eye text-xs"></i>
+                                </button>
+                                <button onclick="quickUpdateStatus('${order.id}', 'Received')" class="p-1.5 rounded bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white" title="Mark Received">
+                                    <i class="fa-solid fa-check text-xs"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderVendorsGrid() {
+            const grid = document.getElementById('vendors-card-grid');
+            if (!grid) return;
+
+            grid.innerHTML = VENDORS_DATA.map(vendor => {
+                const badgeBg = vendor.badgeColor === 'emerald' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+                                vendor.badgeColor === 'blue' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
+                                vendor.badgeColor === 'amber' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' :
+                                'bg-slate-700/40 text-slate-300 border-slate-600';
+
+                return `
+                    <div class="bg-slate-800/70 border border-slate-700/80 rounded-xl p-5 hover:border-slate-600 transition-all shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-start justify-between mb-3">
+                                <div>
+                                    <h3 class="text-base font-bold text-white leading-tight">${vendor.name}</h3>
+                                    <p class="text-xs text-slate-400">${vendor.category}</p>
+                                </div>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeBg}">
+                                    ${vendor.status}
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 my-4 p-3 bg-slate-900/60 rounded-lg border border-slate-800/80 text-xs">
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] uppercase font-semibold">SLA On-Time</span>
+                                    <span class="text-sm font-bold font-mono ${vendor.onTimeDeliveryRate >= 95 ? 'text-emerald-400' : vendor.onTimeDeliveryRate >= 90 ? 'text-blue-400' : 'text-amber-400'}">
+                                        ${vendor.onTimeDeliveryRate}%
+                                    </span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] uppercase font-semibold">Quality Score</span>
+                                    <span class="text-sm font-bold font-mono text-white flex items-center">
+                                        <i class="fa-solid fa-star text-amber-400 mr-1 text-xs"></i> ${vendor.qualityScore} / 5.0
+                                    </span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] uppercase font-semibold">Lead Time</span>
+                                    <span class="text-sm font-semibold font-mono text-slate-200">${vendor.leadTimeDays} Days</span>
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] uppercase font-semibold">Active Orders</span>
+                                    <span class="text-sm font-semibold font-mono text-slate-200">${vendor.activeOrdersCount} in flight</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-700/60 flex items-center justify-between">
+                            <span class="text-xs text-slate-400 font-mono font-medium">Spend: <strong class="text-white">$${(vendor.totalSpend / 1000).toFixed(0)}k</strong></span>
+                            <button onclick="prefillNewOrderForVendor('${vendor.id}')" class="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 text-xs font-semibold transition-colors flex items-center space-x-1.5">
+                                <i class="fa-solid fa-plus text-xs"></i>
+                                <span>Issue PO</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getStatusBadgeHTML(status) {
+            switch (status) {
+                case 'Delayed':
+                    return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30"><i class="fa-solid fa-circle-exclamation mr-1 text-[9px]"></i> Delayed</span>';
+                case 'In Transit':
+                    return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30"><i class="fa-solid fa-truck mr-1 text-[9px]"></i> In Transit</span>';
+                case 'Received':
+                    return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-check mr-1 text-[9px]"></i> Received</span>';
+                case 'Pending':
+                    return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30"><i class="fa-solid fa-clock mr-1 text-[9px]"></i> Pending</span>';
+                default:
+                    return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-700/50 text-slate-300 border border-slate-600">${status}</span>`;
+            }
+        }
+
+        // --- 3. CHARTS INITIALIZATION (APEXCHARTS) ---
+        function initCharts() {
+            // Chart 1: Spend & Volume Mixed Chart
+            const spendChartOptions = {
+                series: [
+                    {
+                        name: 'Capital Spend ($k)',
+                        type: 'column',
+                        data: [280, 310, 390, 420, 380, 490, 520, 480]
+                    },
+                    {
+                        name: 'Purchase Orders Count',
+                        type: 'line',
+                        data: [110, 125, 142, 160, 148, 175, 192, 178]
+                    }
+                ],
+                chart: {
+                    height: 310,
+                    type: 'line',
+                    toolbar: { show: false },
+                    background: 'transparent',
+                    fontFamily: 'Plus Jakarta Sans, sans-serif'
+                },
+                theme: { mode: 'dark' },
+                stroke: {
+                    width: [0, 3],
+                    curve: 'smooth'
+                },
+                plotOptions: {
+                    bar: {
+                        columnWidth: '38%',
+                        borderRadius: 6,
+                    }
+                },
+                colors: ['#3b82f6', '#34d399'],
+                xaxis: {
+                    categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
+                    labels: { style: { colors: '#94a3b8', fontSize: '11px' } },
+                    axisBorder: { show: false },
+                    axisTicks: { show: false }
+                },
+                yaxis: [
+                    {
+                        title: { text: 'Spend ($ in Thousands)', style: { color: '#94a3b8', fontSize: '11px' } },
+                        labels: {
+                            formatter: (val) => '$' + val + 'k',
+                            style: { colors: '#94a3b8', fontSize: '11px' }
+                        }
+                    },
+                    {
+                        opposite: true,
+                        title: { text: 'PO Volume (Units)', style: { color: '#94a3b8', fontSize: '11px' } },
+                        labels: {
+                            formatter: (val) => val,
+                            style: { colors: '#94a3b8', fontSize: '11px' }
+                        }
+                    }
+                ],
+                grid: {
+                    borderColor: '#334155',
+                    strokeDashArray: 4,
+                    padding: { top: 0, right: 10, bottom: 0, left: 10 }
+                },
+                legend: { show: false },
+                tooltip: {
+                    theme: 'dark',
+                    y: {
+                        formatter: function(val, opt) {
+                            if (opt.seriesIndex === 0) return '$' + (val * 1000).toLocaleString();
+                            return val + ' Orders';
+                        }
+                    }
+                }
+            };
+
+            const spendEl = document.getElementById('spend-chart-container');
+            if (spendEl) {
+                spendChartInstance = new ApexCharts(spendEl, spendChartOptions);
+                spendChartInstance.render();
+            }
+
+            // Chart 2: Status Breakdown Donut
+            const statusChartOptions = {
+                series: [44, 22, 13, 8, 13],
+                labels: ['Received', 'In Transit', 'Pending', 'Delayed', 'Approved'],
+                chart: {
+                    type: 'donut',
+                    height: 250,
+                    fontFamily: 'Plus Jakarta Sans, sans-serif',
+                    events: {
+                        dataPointSelection: function(event, chartContext, config) {
+                            const selectedLabel = config.w.config.labels[config.dataPointIndex];
+                            filterByStatus(selectedLabel);
+                        }
+                    }
+                },
+                colors: ['#10b981', '#3b82f6', '#f59e0b', '#f43f5e', '#8b5cf6'],
+                theme: { mode: 'dark' },
+                stroke: { show: false },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            size: '72%',
+                            labels: {
+                                show: true,
+                                name: { color: '#94a3b8', fontSize: '12px' },
+                                value: {
+                                    color: '#ffffff',
+                                    fontSize: '22px',
+                                    fontWeight: 700,
+                                    formatter: (val) => val + '%'
+                                },
+                                total: {
+                                    show: true,
+                                    label: 'Received',
+                                    color: '#94a3b8',
+                                    fontSize: '11px',
+                                    formatter: () => '44%'
+                                }
+                            }
+                        }
+                    }
+                },
+                legend: { show: false },
+                tooltip: {
+                    theme: 'dark',
+                    y: { formatter: (val) => val + '% of total volume' }
+                }
+            };
+
+            const statusEl = document.getElementById('status-chart-container');
+            if (statusEl) {
+                statusChartInstance = new ApexCharts(statusEl, statusChartOptions);
+                statusChartInstance.render();
+            }
+        }
+
+        // --- 4. NAVIGATION & FILTERING ---
+        function switchTab(tabId) {
+            currentTab = tabId;
+            
+            // Hide all tab contents
+            document.getElementById('tab-content-overview').classList.add('hidden');
+            document.getElementById('tab-content-orders').classList.add('hidden');
+            document.getElementById('tab-content-vendors').classList.add('hidden');
+
+            // Reset sidebar links
+            ['overview', 'orders', 'vendors'].forEach(id => {
+                const el = document.getElementById('nav-' + id);
+                if (el) {
+                    el.className = "w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+                }
+            });
+
+            // Show active tab
+            const activeContent = document.getElementById('tab-content-' + tabId);
+            if (activeContent) activeContent.classList.remove('hidden');
+
+            const activeNav = document.getElementById('nav-' + tabId);
+            if (activeNav) {
+                activeNav.className = "w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors bg-blue-600 text-white shadow-md shadow-blue-600/20";
+            }
+
+            // Update title
+            const titleEl = document.getElementById('page-header-title');
+            if (titleEl) {
+                if (tabId === 'overview') titleEl.textContent = 'Executive Procurement Overview';
+                if (tabId === 'orders') titleEl.textContent = 'Purchase Orders Registry';
+                if (tabId === 'vendors') titleEl.textContent = 'Vendor Performance & Scorecards';
+            }
+
+            // Close mobile sidebar if open
+            closeMobileSidebar();
+        }
+
+        function filterByStatus(status) {
+            currentStatusFilter = status;
+            
+            // Update filter pill UI
+            const buttons = ['ALL', 'In-Transit', 'Delayed', 'Pending', 'Received'];
+            buttons.forEach(b => {
+                const btn = document.getElementById('filter-btn-' + b);
+                if (btn) {
+                    btn.className = "px-2.5 py-1 rounded-md font-medium text-slate-400 hover:text-white transition-colors";
+                }
+            });
+
+            const activeBtnId = status === 'In Transit' ? 'filter-btn-In-Transit' : 'filter-btn-' + status;
+            const activeBtn = document.getElementById(activeBtnId);
+            if (activeBtn) {
+                activeBtn.className = "px-2.5 py-1 rounded-md font-semibold bg-blue-600 text-white transition-colors";
+            }
+
+            renderRecentOrdersTable();
+            showToast(`Filter applied: ${status === 'ALL' ? 'All Orders' : status}`);
+        }
+
+        function resetStatusFilter() {
+            filterByStatus('ALL');
+        }
+
+        function handleGlobalSearch(val) {
+            searchQuery = val;
+            renderRecentOrdersTable();
+            renderAllOrdersTable();
+        }
+
+        function refreshData() {
+            const icon = document.getElementById('refresh-icon');
+            if (icon) icon.classList.add('fa-spin');
+            
+            setTimeout(() => {
+                if (icon) icon.classList.remove('fa-spin');
+                const now = new Date();
+                const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} UTC`;
+                document.getElementById('last-updated-text').textContent = timeStr;
+                showToast('Synchronized with ERP live database.');
+            }, 600);
+        }
+
+        // --- 5. MODAL HANDLERS ---
+        function openOrderModal(orderId) {
+            const order = PURCHASE_ORDERS.find(o => o.id === orderId);
+            if (!order) return;
+
+            const modalContent = document.getElementById('order-details-modal-content');
+            modalContent.innerHTML = `
+                <div class="border-b border-slate-800 pb-4 mb-4">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xs font-mono font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/20">${order.poNumber}</span>
+                        ${getStatusBadgeHTML(order.status)}
+                    </div>
+                    <h2 class="text-xl font-bold text-white mt-2">${order.vendorName}</h2>
+                    <p class="text-xs text-slate-400">Destination: ${order.destination}</p>
+                </div>
+
+                <!-- Shipment Tracking Timeline -->
+                <div class="mb-5 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Logistics Milestones</h4>
+                    <div class="space-y-3">
+                        ${order.milestones ? order.milestones.map((m, idx) => `
+                            <div class="flex items-start space-x-3 text-xs">
+                                <div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${m.delayed ? 'bg-rose-500 text-white' : m.done ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 border border-slate-700'}">
+                                    <i class="fa-solid ${m.delayed ? 'fa-exclamation' : m.done ? 'fa-check' : 'fa-circle'}"></i>
+                                </div>
+                                <div class="flex-1 flex justify-between items-center">
+                                    <span class="font-medium ${m.delayed ? 'text-rose-400 font-bold' : m.done ? 'text-slate-200' : 'text-slate-500'}">${m.step}</span>
+                                    <span class="font-mono text-[11px] text-slate-400">${m.time}</span>
+                                </div>
+                            </div>
+                        `).join('') : '<p class="text-xs text-slate-500">No milestone details available.</p>'}
+                    </div>
+                </div>
+
+                <!-- Bill of Materials Table -->
+                <div class="mb-5">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Itemized Purchase Commitment</h4>
+                    <div class="overflow-x-auto bg-slate-950 rounded-xl border border-slate-800 p-2">
+                        <table class="w-full text-xs text-left">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-slate-800 pb-1">
+                                    <th class="py-1 px-2">Item Description</th>
+                                    <th class="py-1 px-2 text-center">Qty</th>
+                                    <th class="py-1 px-2 text-right">Unit Price</th>
+                                    <th class="py-1 px-2 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-850">
+                                ${order.items.map(it => `
+                                    <tr>
+                                        <td class="py-2 px-2 text-slate-200 font-medium">${it.name}</td>
+                                        <td class="py-2 px-2 text-center text-slate-400 font-mono">${it.qty}</td>
+                                        <td class="py-2 px-2 text-right text-slate-400 font-mono">$${it.unitPrice.toLocaleString()}</td>
+                                        <td class="py-2 px-2 text-right text-slate-100 font-bold font-mono">$${it.total.toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-between items-center mt-3 px-2">
+                        <span class="text-xs text-slate-400">Total Purchase Order Value:</span>
+                        <span class="text-base font-bold text-emerald-400 font-mono">$${order.totalAmount.toLocaleString()}</span>
+                    </div>
+                </div>
+
+                <!-- Action Footer -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-slate-400">Change Status:</span>
+                        <select onchange="updateOrderStatus('${order.id}', this.value)" class="bg-slate-800 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-hidden">
+                            <option value="In Transit" ${order.status === 'In Transit' ? 'selected' : ''}>In Transit</option>
+                            <option value="Delayed" ${order.status === 'Delayed' ? 'selected' : ''}>Delayed</option>
+                            <option value="Received" ${order.status === 'Received' ? 'selected' : ''}>Received</option>
+                            <option value="Pending" ${order.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                        </select>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="closeOrderModal()" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('order-details-modal').classList.remove('hidden');
+        }
+
+        function closeOrderModal() {
+            document.getElementById('order-details-modal').classList.add('hidden');
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            const order = PURCHASE_ORDERS.find(o => o.id === orderId);
+            if (order) {
+                order.status = newStatus;
+                renderAll();
+                showToast(`Updated ${order.poNumber} status to "${newStatus}"`);
+            }
+        }
+
+        function quickUpdateStatus(orderId, newStatus) {
+            updateOrderStatus(orderId, newStatus);
+        }
+
+        function populateVendorSelectDropdown() {
+            const select = document.getElementById('modal-vendor-select');
+            if (!select) return;
+            select.innerHTML = VENDORS_DATA.map(v => `<option value="${v.id}">${v.name} (${v.category})</option>`).join('');
+        }
+
+        function openNewOrderModal() {
+            document.getElementById('modal-eta-input').value = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+            const container = document.getElementById('modal-items-container');
+            container.innerHTML = '';
+            addModalItemRow();
+            document.getElementById('new-order-modal').classList.remove('hidden');
+        }
+
+        function prefillNewOrderForVendor(vendorId) {
+            openNewOrderModal();
+            const select = document.getElementById('modal-vendor-select');
+            if (select) select.value = vendorId;
+        }
+
+        function closeNewOrderModal() {
+            document.getElementById('new-order-modal').classList.add('hidden');
+        }
+
+        function addModalItemRow() {
+            const container = document.getElementById('modal-items-container');
+            const rowId = 'row-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+            const div = document.createElement('div');
+            div.id = rowId;
+            div.className = "flex items-center space-x-2 bg-slate-800/80 p-2 rounded-lg border border-slate-700/60";
+            div.innerHTML = `
+                <input type="text" placeholder="Item name..." required class="item-name-input flex-1 bg-slate-900 text-slate-200 px-2 py-1 rounded border border-slate-700 text-xs focus:outline-hidden">
+                <input type="number" placeholder="Qty" min="1" value="1" oninput="calculateModalTotal()" required class="item-qty-input w-16 bg-slate-900 text-slate-200 px-2 py-1 rounded border border-slate-700 text-xs font-mono text-center focus:outline-hidden">
+                <input type="number" placeholder="Price $" min="0" value="1000" oninput="calculateModalTotal()" required class="item-price-input w-24 bg-slate-900 text-slate-200 px-2 py-1 rounded border border-slate-700 text-xs font-mono text-right focus:outline-hidden">
+                <button type="button" onclick="document.getElementById('${rowId}').remove(); calculateModalTotal();" class="text-slate-500 hover:text-rose-400 p-1">
+                    <i class="fa-solid fa-trash text-xs"></i>
+                </button>
+            `;
+            container.appendChild(div);
+            calculateModalTotal();
+        }
+
+        function calculateModalTotal() {
+            const rows = document.querySelectorAll('#modal-items-container > div');
+            let total = 0;
+            rows.forEach(r => {
+                const qty = parseFloat(r.querySelector('.item-qty-input')?.value || 0);
+                const price = parseFloat(r.querySelector('.item-price-input')?.value || 0);
+                total += (qty * price);
+            });
+            document.getElementById('modal-total-display').textContent = '$' + total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return total;
+        }
+
+        function handleCreateOrder(e) {
+            e.preventDefault();
+            const vendorId = document.getElementById('modal-vendor-select').value;
+            const vendor = VENDORS_DATA.find(v => v.id === vendorId) || VENDORS_DATA[0];
+            const dept = document.getElementById('modal-dept-select').value;
+            const eta = document.getElementById('modal-eta-input').value;
+            const carrier = document.getElementById('modal-carrier-select').value;
+
+            const itemRows = document.querySelectorAll('#modal-items-container > div');
+            const items = [];
+            let totalAmount = 0;
+
+            itemRows.forEach(r => {
+                const name = r.querySelector('.item-name-input').value;
+                const qty = parseInt(r.querySelector('.item-qty-input').value) || 1;
+                const unitPrice = parseFloat(r.querySelector('.item-price-input').value) || 0;
+                const total = qty * unitPrice;
+                totalAmount += total;
+                items.push({ name, qty, unitPrice, total });
+            });
+
+            const newPoId = 'PO-' + (9843 + PURCHASE_ORDERS.length);
+            const newOrder = {
+                id: newPoId,
+                poNumber: `PO-2026-${9843 + PURCHASE_ORDERS.length}`,
+                vendorId: vendor.id,
+                vendorName: vendor.name,
+                department: dept,
+                totalAmount: totalAmount,
+                issueDate: new Date().toISOString().split('T')[0],
+                expectedDelivery: eta,
+                status: 'Pending',
+                carrier: carrier,
+                trackingNumber: `${carrier.split(' ')[0].toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-X`,
+                destination: 'Primary Receiving Logistics Gate 1',
+                items: items,
+                milestones: [
+                    { step: 'Order Placed', time: 'Just now', done: true },
+                    { step: 'Awaiting Vendor Pick', time: 'Pending', done: false }
+                ]
+            };
+
+            PURCHASE_ORDERS.unshift(newOrder);
+            vendor.activeOrdersCount += 1;
+            vendor.totalSpend += totalAmount;
+
+            renderAll();
+            closeNewOrderModal();
+            showToast(`Purchase order ${newOrder.poNumber} issued successfully!`);
+        }
+
+        // --- 6. EXPORT / REPORTING ---
+        function openExportModal() {
+            document.getElementById('export-report-modal').classList.remove('hidden');
+        }
+
+        function closeExportModal() {
+            document.getElementById('export-report-modal').classList.add('hidden');
+        }
+
+        function downloadCSVReport() {
+            let csv = "PO Number,Vendor,Department,Total Amount,Issue Date,Expected Delivery,Status,Carrier,Tracking Number\n";
+            PURCHASE_ORDERS.forEach(o => {
+                csv += `"${o.poNumber}","${o.vendorName}","${o.department}",${o.totalAmount},"${o.issueDate}","${o.expectedDelivery}","${o.status}","${o.carrier}","${o.trackingNumber}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `ProcureTech_Orders_Report_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            closeExportModal();
+            showToast('CSV report generated & downloaded.');
+        }
+
+        function downloadJSONReport() {
+            const data = {
+                metadata: {
+                    exportDate: new Date().toISOString(),
+                    system: "ProcureTech Enterprise Suite v2.4",
+                    totalSpend: document.getElementById('kpi-total-spend').textContent,
+                    activeOrders: PURCHASE_ORDERS.length
+                },
+                vendors: VENDORS_DATA,
+                purchaseOrders: PURCHASE_ORDERS
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `ProcureTech_Procurement_Data_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            closeExportModal();
+            showToast('JSON dataset exported successfully.');
+        }
+
+        // --- 7. MOBILE SIDEBAR TOGGLE ---
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('main-sidebar');
+            const backdrop = document.getElementById('mobile-sidebar-backdrop');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('main-sidebar');
+            const backdrop = document.getElementById('mobile-sidebar-backdrop');
+            sidebar.classList.add('-translate-x-full');
+            backdrop.classList.add('hidden');
+        }
+
+        // --- 8. TOAST NOTIFICATIONS ---
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = "bg-slate-800 text-white border border-slate-700 px-4 py-2.5 rounded-xl shadow-2xl text-xs flex items-center space-x-2 animate-fade-in pointer-events-auto";
+            toast.innerHTML = `
+                <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                <span class="font-medium">${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- 9. BOOTSTRAP ON LOAD ---
+        window.addEventListener('DOMContentLoaded', () => {
+            renderAll();
+            initCharts();
+        });
+    </script>
+</body>
+</html>
